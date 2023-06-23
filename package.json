@@ -1,11 +1,14 @@
 {
-  "name": "image_searcher-ts",
-  "version": "0.0.1",
-  "description": "搜图库(?)",
-  "main": "index.js",
+  "name": "image_searcher",
+  "version": "0.2.0",
+  "description": "搜图库 已用ts重写",
+  "main": "./dist/index.js",
   "scripts": {
     "build": "tsc"
   },
+  "files": [
+    "dist/**/*"
+  ],
   "type": "module",
   "repository": "https://github.com/huankong233/ImageSearcher-ts",
   "author": "huan_kong",
