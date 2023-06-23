@@ -20,7 +20,7 @@
 1.克隆项目
 
 ~~~sh
-git clone https://github.com/huankong233/ImageSearcher.git
+git clone https://github.com/huankong233/ImageSearcher-ts.git
 ~~~
 
 2..安装支持库
@@ -37,4 +37,4 @@ yarn test
 
 ## ⭐星星
 
-[![Stargazers over time](https://starchart.cc/huankong233/ImageSearcher.svg)](https://starchart.cc/huankong233/ImageSearcher)
+[![Stargazers over time](https://starchart.cc/huankong233/ImageSearcher-ts.svg)](https://starchart.cc/huankong233/ImageSearcher-ts)
