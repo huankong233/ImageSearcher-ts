@@ -1,6 +1,6 @@
 {
   "name": "image_searcher",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "搜图库 已用ts重写",
   "main": "./dist/index.js",
   "scripts": {

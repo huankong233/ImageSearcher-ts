@@ -43,10 +43,10 @@ export function parse(body: string) {
       content = $('.resultcontentcolumn > *', result)
     if (title.length <= 0) return
 
-    const imageUrl = image.attr('data-src') ?? image.attr('data-src2') ?? ''
+    const imageUrl = image.attr('data-src2') ?? image.attr('data-src') ?? image.attr('src') ?? ''
 
     return {
-      image: new URL(imageUrl, BASE_URL).toString(),
+      image: imageUrl,
       title: title.text(),
       similarity: parseFloat(similarity.text()),
       misc: _.map(misc, m => m.attribs.href),
