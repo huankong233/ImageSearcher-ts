@@ -80,9 +80,13 @@ export function parse(res: response) {
       data.similarity *= 100
       data.from *= 1000
       data.to *= 1000
+      data.image = replaceAmp(data.image)
+      data.video = replaceAmp(data.video)
       return data
     })
     .filter(<T>(v: T | undefined): v is T => v !== undefined)
     .sort((a, b) => a.similarity - b.similarity)
     .reverse()
 }
+
+const replaceAmp = (str: string | null) => (str ? str.replace(new RegExp('&amp;', 'g'), '&') : null)
