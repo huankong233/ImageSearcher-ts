@@ -14,10 +14,10 @@ export type AnimeTraceReq = {
   preview?: boolean
 } & (
   | {
-      url?: string
+      url: string
     }
   | {
-      imagePath?: string
+      imagePath: string
     }
 )
 
