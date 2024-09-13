@@ -11,7 +11,6 @@
 | [IqDB](https://iqdb.org/)            | ✔   | ✔         |
 | [SauceNAO](https://saucenao.com)     | ✔   | ✔         |
 | [TraceMoe](https://trace.moe/)       | ✔   | ✔         |
-| [Yandex](https://yandex.com/images)  | ✔   | ❌         |
 | [AnimeTrace](https://ai.animedb.cn/) | ✔   | ✔         |
 
 ## 🎉使用方法

@@ -1,52 +1,49 @@
-import fetch from 'node-fetch'
-import { fileFrom } from 'fetch-blob/from.js'
-import { FormData } from 'formdata-polyfill/esm.min.js'
-import { download } from './download.js'
+import axios from 'axios'
+import { FormData } from 'formdata-node'
+import { fileFromPath } from 'formdata-node/file-from-path'
 import fs from 'fs'
+import { Jimp } from 'jimp'
+import { download } from './download.js'
 
 export const BASE_URL = 'https://aiapiv2.animedb.cn/ai/api/detect'
 
-interface AnimeTrace {
-  model: AnimeTraceModels
-  mode: 1 | 0
-  url?: string
-  imagePath?: string
+export type AnimeTraceReq = {
+  model: AnimeTraceReqModels
+  force_one?: 1 | 0
+  ai_detect?: 1 | 0
   preview?: boolean
-}
+} & (
+  | {
+      url?: string
+    }
+  | {
+      imagePath?: string
+    }
+)
 
-type AnimeTraceModels =
+export type AnimeTraceReqModels =
+  // 通用
+  | 'large_model_preview'
+  // 动漫
   | 'anime'
-  | 'pre_stable'
+  // 高级动画模型1
   | 'anime_model_lovelive'
+  // 高级动画模型2
+  | 'pre_stable'
+  // galgame1
   | 'game'
+  // galgame2
   | 'game_model_kirakira'
 
-export async function AnimeTrace(req: AnimeTrace) {
-  const { url, imagePath } = req
-  const form = new FormData()
-  if (imagePath) {
-    form.append('image', await fileFrom(imagePath))
-    return await request(form, req)
-  } else if (url) {
-    //download image
-    const fullPath = await download(url)
-    req.imagePath = fullPath
-    form.append('image', await fileFrom(fullPath))
-    const data = await request(form, req)
-    fs.unlinkSync(fullPath)
-    return data
-  } else {
-    throw Error('please input imagePath or url')
-  }
-}
-
-interface response {
+export interface AnimeTraceRes {
+  ai: boolean
   code: number
   data: responseData[]
+  new_code: number
 }
 
 interface responseData {
-  box: number[]
+  box: [number, number, number, number, number]
   char: responseDataChar[]
   box_id: string
   preview: string | null
@@ -58,50 +55,56 @@ interface responseDataChar {
   acc: number
 }
 
-export async function request(form: FormData, req: AnimeTrace) {
-  const { model, mode } = req
+export async function AnimeTrace(req: AnimeTraceReq) {
+  const form = new FormData()
 
-  const response = (await fetch(
-    `${BASE_URL}?model=${model ? model : 'anime'}&force_one=${mode ? mode : 1}`,
-    {
-      method: 'POST',
-      body: form
-    }
-  ).then(res => res.json())) as response
-
-  if (response.code === 0) {
-    return await parse(response.data, req)
+  let fullPath
+  if ('imagePath' in req && req.imagePath) {
+    form.append('image', await fileFromPath(req.imagePath))
+  } else if ('url' in req && req.url) {
+    fullPath = await download(req.url)
+    form.append('image', await fileFromPath(fullPath))
   } else {
-    console.log(response)
-    throw new Error('请求失败')
+    throw Error('please input imagePath or url')
   }
-}
 
-import Jimp from 'jimp'
-export async function parse(response: responseData[], req: AnimeTrace) {
-  if (req.preview) {
-    let image
+  const { model, force_one = 1, ai_detect = 0 } = req
+
+  const response = await axios.post<AnimeTraceRes>(
+    `${BASE_URL}?model=${model ? model : 'anime'}&force_one=${force_one}&ai_detect=${ai_detect}`,
+    form
+  )
+
+  const data = response.data
+  if (response.status !== 200 || data.code !== 0) throw new Error('The request failed')
+
+  if (req.preview && fullPath) {
     try {
-      image = await Jimp.read(req.imagePath as string)
-      const width = image.getWidth()
-      const height = image.getHeight()
-      for (let i = 0; i < response.length; i++) {
-        const box = response[i].box
+      const image = await Jimp.read(fs.readFileSync(fullPath))
+      const width = image.width
+      const height = image.height
+      for (const index in data.data) {
+        const item = data.data[index]
+        const box = item.box
         const newImage = image.clone()
         // 裁切图片
-        newImage.crop(
-          width * box[0],
-          height * box[1],
-          width * (box[2] - box[0]),
-          height * (box[3] - box[1])
-        )
-        response[i].preview = (await newImage.getBase64Async(Jimp.AUTO)).split(',')[1]
+        newImage.crop({
+          x: width * box[0],
+          y: height * box[1],
+          w: width * (box[2] - box[0]),
+          h: height * (box[3] - box[1])
+        })
+        const base64 = await newImage.getBase64('image/png')
+        data.data[index].preview = base64.split(',')[1]
       }
     } catch (error) {
-      for (let i = 0; i < response.length; i++) {
-        response[i].preview = 'fail unsupport image type'
+      for (const index in data.data) {
+        data.data[index].preview = 'failed unsupported image type'
       }
     }
   }
-  return response
+
+  if (fullPath) fs.unlinkSync(fullPath)
+
+  return data
 }

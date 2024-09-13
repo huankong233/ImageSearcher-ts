@@ -1,6 +1,6 @@
 {
   "name": "image_searcher",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "搜图库 已用ts重写",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,16 +15,16 @@
   "author": "huan_kong",
   "license": "MIT",
   "dependencies": {
-    "cheerio": "1.0.0-rc.12",
-    "fetch-blob": "^4.0.0",
-    "formdata-polyfill": "^4.0.10",
-    "jimp": "^0.22.10",
+    "axios": "^1.7.7",
+    "cheerio": "1.0.0",
+    "formdata-node": "^6.0.3",
+    "jimp": "^1.6.0",
     "lodash": "^4.17.21",
-    "node-fetch": "^3.3.2"
+    "mime-types": "^2.1.35"
   },
   "devDependencies": {
-    "@types/lodash": "^4.14.199",
-    "@types/node-fetch": "^2.6.6",
-    "typescript": "^5.2.2"
+    "@types/lodash": "^4.17.7",
+    "@types/mime-types": "^2.1.4",
+    "typescript": "^5.6.2"
   }
 }

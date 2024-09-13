@@ -1,7 +1,8 @@
+import axios from 'axios'
+import * as cheerio from 'cheerio'
+import { FormData } from 'formdata-node'
+import { fileFromPath } from 'formdata-node/file-from-path'
 import fs from 'fs'
-import fetch from 'node-fetch'
-import { fileFrom } from 'fetch-blob/from.js'
-import { FormData } from 'formdata-polyfill/esm.min.js'
 import { download } from './download.js'
 
 export const BASE_URLs = {
@@ -9,36 +10,44 @@ export const BASE_URLs = {
   ex: 'https://exhentai.org/upld/image_lookup.php'
 }
 
-interface Ehentai {
+export type EhentaiReq = {
   site: 'eh' | 'ex'
   cover?: boolean
   deleted?: boolean
   similar?: boolean
   EH_COOKIE?: string
-  imagePath?: string
-  url: string
-}
+} & (
+  | {
+      imagePath: string
+    }
+  | {
+      url: string
+    }
+)
 
-export async function EHentai(req: Ehentai) {
-  const { imagePath, url } = req
+export type EhentaiRes = {
+  title: string
+  image: string
+  link: string
+  type: string
+  date: string
+  tags: string[]
+}[]
 
+export async function EHentai(req: EhentaiReq): Promise<EhentaiRes> {
   const form = new FormData()
-  if (imagePath) {
-    form.append('sfile', await fileFrom(imagePath))
-    return await request(form, req)
-  } else if (url) {
+
+  let fullPath
+  if ('imagePath' in req && req.imagePath) {
+    form.append('sfile', await fileFromPath(req.imagePath))
+  } else if ('url' in req && req.url) {
     //download image
-    const fullPath = await download(url)
-    form.append('sfile', await fileFrom(fullPath))
-    const data = await request(form, req)
-    fs.unlinkSync(fullPath)
-    return data
+    fullPath = await download(req.url)
+    form.append('sfile', await fileFromPath(fullPath))
   } else {
     throw Error('please input imagePath or url')
   }
-}
 
-export async function request(form: FormData, req: Ehentai) {
   const { site, cover, deleted, similar, EH_COOKIE } = req
 
   form.append('f_sfile', 'search')
@@ -48,44 +57,39 @@ export async function request(form: FormData, req: Ehentai) {
 
   let response
   if (site === 'eh') {
-    response = await fetch(BASE_URLs['eh'], {
-      method: 'POST',
-      body: form
-    }).then(res => res.text())
-  }
-
-  if (site === 'ex') {
-    response = await fetch(BASE_URLs['ex'], {
-      method: 'POST',
-      body: form,
+    response = await axios.post<string>(BASE_URLs['eh'], form)
+  } else if (site === 'ex') {
+    response = await axios.post<string>(BASE_URLs['ex'], form, {
       headers: { Cookie: EH_COOKIE ?? '' }
-    }).then(res => res.text())
+    })
+  } else {
+    throw Error('site must be eh or ex')
   }
 
-  return parse(response as string)
-}
+  if (fullPath) fs.unlinkSync(fullPath)
 
-import * as cheerio from 'cheerio'
-import _ from 'lodash'
+  const data = response.data
+  const $ = cheerio.load(data)
+  return $('.gltc > tbody > tr')
+    .toArray()
+    .map((result, index) => {
+      if (index !== 0) {
+        const title = $('.glink', result),
+          [image] = $('.glthumb img', result),
+          [link] = $('.gl3c a', result),
+          type = $('.gl1c .cn', result),
+          date = $('.gl2c [id^=posted]', result).eq(0),
+          tags = $('.gl3c .gt', result)
 
-export function parse(body: string) {
-  const $ = cheerio.load(body)
-  return _.map($('.gltc > tbody > tr'), (result, index) => {
-    if (index !== 0) {
-      const title = $('.glink', result),
-        [image] = $('.glthumb img', result),
-        [link] = $('.gl3c a', result),
-        type = $('.gl1c .cn', result),
-        date = $('.gl2c [id^=posted]', result).eq(0),
-        tags = $('.gl3c .gt', result)
-      return {
-        title: title.text(),
-        image: image.attribs.src,
-        link: link.attribs.href,
-        type: type.text().toUpperCase(),
-        date: date.text(),
-        tags: _.map(tags, tag => $(tag).text())
+        return {
+          title: title.text(),
+          image: image.attribs.src,
+          link: link.attribs.href,
+          type: type.text().toUpperCase(),
+          date: date.text(),
+          tags: tags.map((index, tag) => $(tag).text()).toArray()
+        }
       }
-    }
-  }).filter(<T>(v: T | undefined): v is T => v !== undefined)
+    })
+    .filter((item) => item !== undefined)
 }

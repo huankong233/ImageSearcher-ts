@@ -1,92 +1,69 @@
-import fetch from 'node-fetch'
-import fs from 'fs'
-import { fileFrom } from 'fetch-blob/from.js'
-import { FormData } from 'formdata-polyfill/esm.min.js'
+import axios from 'axios'
+import { FormData } from 'formdata-node'
+import { fileFromPath } from 'formdata-node/file-from-path'
 import { download } from './download.js'
 
 export const BASE_URL = 'https://api.trace.moe'
 
-interface TraceMoe {
-  cutBorders: boolean
-  imagePath?: string
-  url?: string
-}
+export type TraceMoeReq = {
+  cutBorders?: boolean
+} & (
+  | {
+      imagePath: string
+    }
+  | {
+      url: string
+    }
+)
 
-export async function TraceMoe(req: TraceMoe) {
-  const { imagePath, url } = req
-  const form = new FormData()
-  if (imagePath) {
-    form.append('image', await fileFrom(imagePath))
-    return await request(form, req)
-  } else if (url) {
-    //download image
-    const fullPath = await download(url)
-    form.append('image', await fileFrom(fullPath))
-    const data = await request(form, req)
-    fs.unlinkSync(fullPath)
-    return data
-  } else {
-    throw Error('please input imagePath or url')
-  }
-}
-
-interface response {
+export interface TraceMoeApiRes {
   frameCount: number
   error: string
-  result: responseData[]
+  result: TraceMoeRes[]
 }
 
-interface responseData {
-  anilist: responseAnilist
+export interface TraceMoeRes {
+  anilist: number
   filename: string | null
   episode: number | null
   from: number
   to: number
   similarity: number
-  video: string | null
-  image: string | null
+  video: string
+  image: string
 }
 
-interface responseAnilist {
-  id: number
-  idMal: number
-  title: responseAnilistTitle
-  synonyms: []
-  isAdult: boolean
-}
+export async function TraceMoe(req: TraceMoeReq) {
+  const form = new FormData()
 
-interface responseAnilistTitle {
-  native: string | null
-  romaji: string | null
-  english: string | null
-}
+  let fullPath
+  if ('imagePath' in req && req.imagePath) {
+    form.append('image', await fileFromPath(req.imagePath))
+  } else if ('url' in req && req.url) {
+    fullPath = await download(req.url)
+    form.append('image', await fileFromPath(fullPath))
+  } else {
+    throw Error('please input imagePath or url')
+  }
 
-export async function request(form: FormData, req: TraceMoe) {
   const { cutBorders } = req
-  const res = (await fetch(
-    `${BASE_URL}/search?anilistInfo=1${cutBorders ? '&&cutBorders=1' : ''}`,
-    {
-      method: 'POST',
-      body: form
-    }
-  ).then(res => res.json())) as response
-  return parse(res)
-}
+  const res = await axios.post<TraceMoeApiRes>(
+    `${BASE_URL}/search?cutBorders${cutBorders ? '&cutBorders=1' : ''}`,
+    form
+  )
 
-export function parse(res: response) {
-  const { result } = res
-  return result
-    .map(data => {
+  const data = res.data
+  if (data.error !== '') throw new Error(data.error)
+
+  return data.result
+    .map((data) => {
       data.similarity *= 100
       data.from *= 1000
       data.to *= 1000
-      data.image = replaceAmp(data.image)
-      data.video = replaceAmp(data.video)
+      data.image = decodeURIComponent(data.image ?? '')
+      data.video = decodeURIComponent(data.video ?? '')
       return data
     })
     .filter(<T>(v: T | undefined): v is T => v !== undefined)
-    .sort((a, b) => a.similarity - b.similarity)
-    .reverse()
+    .sort((a, b) => b.similarity - a.similarity)
 }
-
-const replaceAmp = (str: string | null) => (str ? str.replace(new RegExp('&amp;', 'g'), '&') : null)

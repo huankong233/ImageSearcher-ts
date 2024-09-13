@@ -1,15 +1,21 @@
-import fetch from 'node-fetch'
-import { fileFrom } from 'fetch-blob/from.js'
-import { FormData } from 'formdata-polyfill/esm.min.js'
+import axios from 'axios'
+import * as cheerio from 'cheerio'
+import { FormData } from 'formdata-node'
+import { fileFromPath } from 'formdata-node/file-from-path'
 
 export const BASE_URL = 'https://iqdb.org/'
 
-interface IqDB {
-  discolor: boolean
+export type IqDBReq = {
+  discolor?: boolean
   services: servicesKeys[]
-  imagePath?: string
-  url?: string
-}
+} & (
+  | {
+      url: string
+    }
+  | {
+      imagePath: string
+    }
+)
 
 type servicesKeys =
   | 'danbooru'
@@ -21,50 +27,55 @@ type servicesKeys =
   | 'zerochan'
   | 'anime_pictures'
 
-export async function IqDB(req: IqDB) {
-  const { services, discolor, imagePath, url } = req
+export type IqDBRes = {
+  url: string
+  image: string
+  similarity: number
+  resolution: string
+  level: string
+}[]
+
+export async function IqDB(req: IqDBReq): Promise<IqDBRes> {
   const form = new FormData()
-  if (imagePath) {
-    form.append('file', await fileFrom(imagePath))
-  } else if (url) {
-    form.append('url', url)
+
+  if ('imagePath' in req && req.imagePath) {
+    form.append('file', await fileFromPath(req.imagePath))
+  } else if ('url' in req && req.url) {
+    form.append('url', req.url)
   } else {
     throw Error('please input imagePath or url')
   }
 
+  const { services, discolor = true } = req
+
   if (services) services.forEach((s, index) => form.append(`service.${index}`, s.toString()))
   if (discolor) form.append('forcegray', 'on')
 
-  const response = await fetch(BASE_URL, { method: 'POST', body: form }).then(res => res.text())
+  const response = await axios.post<string>(BASE_URL, form)
+  const data = response.data
+  const $ = cheerio.load(data)
+  return $('table')
+    .toArray()
+    .map((result) => {
+      const content = $(result).text()
+      const [link] = $('td.image > a', result)
+      const [image] = $('td.image img', result)
 
-  return parse(response)
-}
+      // 忽略自己的图片
+      if (!link) return
 
-import * as cheerio from 'cheerio'
-import _ from 'lodash'
+      const [, similarity] = content.match(/(\d+%)\s*similarity/) ?? []
+      const [, level] = content.match(/\[(\w+)\]/) ?? []
+      const [, resolution] = content.match(/(\d+×\d+)/) ?? []
 
-export function parse(body: string) {
-  const $ = cheerio.load(body)
-  return _.map($('table'), result => {
-    const content = $(result).text(),
-      [link] = $('td.image > a', result),
-      [image] = $('td.image img', result)
-
-    if (!link) return
-
-    const [, similarity] = content.match(/(\d+%)\s*similarity/) ?? [],
-      [, level] = content.match(/\[(\w+)\]/) ?? [],
-      [, resolution] = content.match(/(\d+×\d+)/) ?? []
-
-    return {
-      url: new URL(link.attribs.href, BASE_URL).toString(),
-      image: new URL(image.attribs.src, BASE_URL).toString(),
-      similarity: parseFloat(similarity),
-      resolution,
-      level: level.toLowerCase()
-    }
-  })
-    .filter(<T>(v: T | undefined): v is T => v !== undefined)
-    .sort((a, b) => a.similarity - b.similarity)
-    .reverse()
+      return {
+        url: new URL(link.attribs.href, BASE_URL).toString(),
+        image: new URL(image.attribs.src, BASE_URL).toString(),
+        similarity: parseFloat(similarity),
+        resolution,
+        level: level.toLowerCase()
+      }
+    })
+    .filter((v) => v !== undefined)
+    .sort((a, b) => b.similarity - a.similarity)
 }
