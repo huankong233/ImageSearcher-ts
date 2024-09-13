@@ -50,7 +50,7 @@
 //   model: 'game_model_kirakira',
 //   force_one: 1,
 //   // imagePath: './1.jpg',
-//   url: 'https://th.bing.com/th/id/R.f4bf4d7653c717077ac8a60e44d1e707?rik=7mm83th4yJto8w&riu=http%3a%2f%2fi2.hdslb.com%2fbfs%2farchive%2f979b12d0baf07446c93c2bb0615759e3d1643b5a.jpg&ehk=IFpbI8QO5HKNuRVW%2bWTxlFdBNXxkoHrFjNCjCOr8SB4%3d&risl=&pid=ImgRaw&r=0',
+//   url: 'https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=CgoyNTY0MDc2NDU5EhTuoPT_RSIDqZyKQUwnaTcuNVjBPxjDtAcg_woohcjhnsa_iANQgL2jAQ&spec=0&rkey=CAISKKSBekjVG1fMjwJ_VhyQK33JRaRec0OlnSRYP8uD-NSuGLVKNYV_110',
 //   preview: true
 // })
 // console.dir(AnimeTrace_response, { depth: null })

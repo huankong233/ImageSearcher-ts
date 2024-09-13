@@ -60,6 +60,7 @@ export async function AnimeTrace(req: AnimeTraceReq) {
 
   let fullPath
   if ('imagePath' in req && req.imagePath) {
+    fullPath = req.imagePath
     form.append('image', await fileFromPath(req.imagePath))
   } else if ('url' in req && req.url) {
     fullPath = await download(req.url)
@@ -104,7 +105,7 @@ export async function AnimeTrace(req: AnimeTraceReq) {
     }
   }
 
-  if (fullPath) fs.unlinkSync(fullPath)
+  if ('url' in req && fullPath) fs.unlinkSync(fullPath)
 
   return data.data
 }

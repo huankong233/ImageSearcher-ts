@@ -39,6 +39,7 @@ export async function EHentai(req: EhentaiReq): Promise<EhentaiRes> {
 
   let fullPath
   if ('imagePath' in req && req.imagePath) {
+    fullPath = req.imagePath
     form.append('sfile', await fileFromPath(req.imagePath))
   } else if ('url' in req && req.url) {
     //download image
@@ -66,7 +67,7 @@ export async function EHentai(req: EhentaiReq): Promise<EhentaiRes> {
     throw Error('site must be eh or ex')
   }
 
-  if (fullPath) fs.unlinkSync(fullPath)
+  if ('url' in req && fullPath) fs.unlinkSync(fullPath)
 
   const data = response.data
   const $ = cheerio.load(data)

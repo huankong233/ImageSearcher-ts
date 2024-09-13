@@ -1,11 +1,12 @@
 {
   "name": "image_searcher",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "搜图库 已用ts重写",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "dev": "tsx ./src/test.ts"
   },
   "files": [
     "dist/**/*"

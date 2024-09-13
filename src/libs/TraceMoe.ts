@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { FormData } from 'formdata-node'
 import { fileFromPath } from 'formdata-node/file-from-path'
+import fs from 'fs'
 import { download } from './download.js'
 
 export const BASE_URL = 'https://api.trace.moe'
@@ -38,6 +39,7 @@ export async function TraceMoe(req: TraceMoeReq) {
 
   let fullPath
   if ('imagePath' in req && req.imagePath) {
+    fullPath = req.imagePath
     form.append('image', await fileFromPath(req.imagePath))
   } else if ('url' in req && req.url) {
     fullPath = await download(req.url)
@@ -52,6 +54,8 @@ export async function TraceMoe(req: TraceMoeReq) {
     form
   )
 
+  if ('url' in req && fullPath) fs.unlinkSync(fullPath)
+
   const data = res.data
   if (data.error !== '') throw new Error(data.error)
 
@@ -64,6 +68,6 @@ export async function TraceMoe(req: TraceMoeReq) {
       data.video = decodeURIComponent(data.video ?? '')
       return data
     })
-    .filter(<T>(v: T | undefined): v is T => v !== undefined)
+    .filter((v) => v !== undefined)
     .sort((a, b) => b.similarity - a.similarity)
 }
