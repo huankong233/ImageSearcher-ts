@@ -106,5 +106,5 @@ export async function AnimeTrace(req: AnimeTraceReq) {
 
   if (fullPath) fs.unlinkSync(fullPath)
 
-  return data
+  return data.data
 }
